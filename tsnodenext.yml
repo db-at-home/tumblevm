@@ -1,0 +1,107 @@
+---
+- name: Install NPM as pre-req
+  ansible.builtin.import_playbook: npm.yml
+
+- name: Create and configure a typescript nodenext install
+  hosts: nodes
+  become: true
+  gather_facts: false
+
+# this is a setup based on https://www.youtube.com/watch?v=H91aqUHn8sE
+
+  vars:
+
+    projname: "tsnodenext"
+    sandbox: "/home/{{ vguser }}/{{ projname }}"
+
+  tasks:
+
+    - name: Create a directory if it does not exist
+      ansible.builtin.file:
+        path: "{{ sandbox }}/src"
+        state: directory
+        mode: "0755"
+        owner: "{{ vguser }}"
+
+    - name: NPM init
+      become_user: "{{ vguser }}"
+      ansible.builtin.command:
+        cmd: npm init -y
+        chdir: "{{ sandbox }}"
+        creates: "{{ sandbox }}/package.json"
+
+    - name: Overwrite package.json -- set type module and build tsc
+      ansible.builtin.copy:
+        dest: "{{ sandbox }}/package.json"
+        content: |
+          {
+            "name": "{{ projname }}",
+            "version": "1.0.0",
+            "description": "",
+            "main": "index.js",
+            "type": "module",
+            "scripts": {
+              "build": "tsc"
+            },
+            "keywords": [],
+            "author": "",
+            "license": "ISC",
+            "dependencies": {
+            }
+          }
+        mode: "0644"
+        owner: "{{ vguser }}"
+
+    - name: NPM install
+      become_user: "{{ vguser }}"
+      community.general.npm:
+        name: "{{ item }}"
+        path: "{{ sandbox }}"
+        state: present
+      with_items:
+        - typescript
+        - "@types/node"
+
+    - name: NPM create TS Config
+      ansible.builtin.copy:
+        dest: "{{ sandbox }}/tsconfig.json"
+        content: |
+          {
+            "compilerOptions": {
+              "module": "NodeNext",
+              "moduleResolution": "NodeNext",
+              "target": "ES2020",
+              "sourceMap": true,
+              "outDir": "dist",
+            },
+            "include": ["src/**/*"],
+          }
+        mode: "0644"
+        owner: "{{ vguser }}"
+
+    - name: ES Module hello
+      ansible.builtin.copy:
+        dest: "{{ sandbox }}/src/hello.ts"
+        content: |
+          export const hello = 'hello world!';
+        mode: "0644"
+        owner: "{{ vguser }}"
+
+    - name: CommonJS Module hello
+      ansible.builtin.copy:
+        dest: "{{ sandbox }}/src/hello.cts"
+        content: |
+          module.exports = 'hola world!';
+        mode: "0644"
+        owner: "{{ vguser }}"
+
+    - name: Modules index
+      ansible.builtin.copy:
+        dest: "{{ sandbox }}/src/index.ts"
+        content: |
+          import { hello } from './hello.js';
+          import hola from './hello.cjs'
+          console.log(hello);
+          console.log(hola);
+        mode: "0644"
+        owner: "{{ vguser }}"

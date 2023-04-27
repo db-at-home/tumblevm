@@ -1,0 +1,17 @@
+---
+- name: "Install npm"
+  hosts: nodes
+  become: true
+  gather_facts: false
+
+  vars:
+
+    npmver: "npm19"
+
+  tasks:
+
+    - name: Install {{ npmver }}
+      community.general.zypper:
+        name:
+          - "{{ npmver }}"
+        state: present
