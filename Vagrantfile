@@ -2,7 +2,14 @@
 # vi: set ft=ruby :
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "opensuse/Tumbleweed.x86_64"
+
+  arch = `uname -m`.strip
+
+  if arch == "x86_64"
+    config.vm.box = "opensuse/Tumbleweed.x86_64"
+  else
+    config.vm.box = "opensuse/Tumbleweed.aarch64"
+  end
 
   # Create a public network, which generally matched to bridged network.
   # Bridged networks make the machine appear as another physical device on
@@ -13,10 +20,10 @@ Vagrant.configure("2") do |config|
   config.vm.network "public_network" 
 
   # non-DHCP network and specify the string matching the interface
-  # config.vm.network "public_network", ip: "192.168.88.5", bridge: [
-  #   "en6: USB 10/100/1000 LAN",
-  #   "en0: Wi-Fi"
-  # ]
+  #config.vm.network "public_network", ip: "192.168.88.5", bridge: [
+  #  "en6: USB 10/100/1000 LAN",
+  #  "en0: Wi-Fi"
+  #]
 
   config.vm.provider "virtualbox" do |vb|
   #  # Display the VirtualBox GUI when booting the machine
