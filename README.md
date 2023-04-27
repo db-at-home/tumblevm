@@ -24,9 +24,9 @@ You don't need the 'VMware Utility' as we're using VirtualBox.
 
 ## Vagrant Boxes
 
-We are going to use [opensuse/Tumbleweed.x86_64](https://app.vagrantup.com/opensuse/boxes/Tumbleweed.x86_64) box from [Vagrant Cloud]( https://app.vagrantup.com/boxes/search).
+We are going to use [opensuse/Tumbleweed.x86_64](https://app.vagrantup.com/opensuse/boxes/Tumbleweed.x86_64) box from [Vagrant Cloud]( https://app.vagrantup.com/boxes/search).  If you have a non-x86_64 CPU arch, like a new M-series Mac or a Raspberry Pi 3 or more recent, then you should use [opensuse/Tumbleweed.aarch64](https://app.vagrantup.com/opensuse/boxes/Tumbleweed.aarch64)
 
-In general I prefer openSUSE because of:
+In general I prefer openSUSE because it has:
 
 * zypper package management (which dnf is based on)
 * yast2 system configuration (with console and graphical UI)
@@ -39,12 +39,27 @@ This last one is really big, because with a tool like [openSUSE KIWI](https://os
 
 In a shell run the following to exercise all the parts and make sure things are in working order.
 
+### Create and enter a sandbox
+
     mkdir testbox
     cd testbox
+
+### Box for Intel/AMD x86_64 CPU hosts
+
     vagrant init -m opensuse/Tumbleweed.x86_64
+
+### Box for Apple M-series or other ARM64 CPU hosts
+
+    vagrant init -m opensuse/Tumbleweed.aarch64
+
+### Continue
+
     vagrant up --provider virtualbox
     vagrant ssh
     cat /etc/os-release # see the guest VM is working
+
+### Cleanup
+
     exit # exit the guest
     vagrant halt
     vagrant destroy --force
@@ -53,15 +68,15 @@ In a shell run the following to exercise all the parts and make sure things are 
 
 ## Knobs for the Guest VM with Provisioning
 
-The whole point of this project is to use [ansible_local](https://developer.hashicorp.com/vagrant/docs/provisioning/ansible_local) provisioning on the VM and make it more 'home network lab' friendly and accessible to a 'developer' and allow for further in-VM ansible runs to rapidly host complex development environments with different goals. Like a heavy-weight docker that is agnostic of the host system it is running on and always allows you to use a familiar linux environment.
+The whole point of this project is to use [ansible_local](https://developer.hashicorp.com/vagrant/docs/provisioning/ansible_local) provisioning on the VM and make it more 'home network lab' friendly and accessible to a 'developer' and allow for further in-VM ansible runs to rapidly host complex development environments with different goals. Like a heavy-weight docker that is agnostic of the host system it is running on, and always allows you to use, a familiar linux environment.
 
-***NOTE***: This is NOT a secured VM suitable for deployment in *any* non-private network environment. Do not deploy your network services using this method. This is [echoing a warning](https://developer.hashicorp.com/vagrant/docs/networking/public_network) from HashiCorp about the unsafe nature of the `public_network` option.
+***NOTE***: This is NOT a secured VM suitable for deployment in *any* non-private network environment. Do not deploy your network services using this method. This is [echoing a warning](https://developer.hashicorp.com/vagrant/docs/networking/public_network) from HashiCorp about the unsafe nature of the `public_network` configuration option.
 
 ### Vagrantfile
 
-You can change `config.vm.box` as you like, but the provisioning expects 'zypper' for package and pattern/group install of deps.
+You can change `config.vm.box` as you like, but the provisioning expects 'zypper' for package and pattern/group install of all dependencies.
 
-The `config.vm.network "public_network"` is to bridge the VM to a physical network device on the host, and make the VM look like it is hardware sitting on the same network as the host. This allows for development and testing without port-mapping for web or other services. You can avoid an interactive promot when bringing the VM up by specifying the string of the bridge device to use in the Vagrantfile:
+The `config.vm.network "public_network"` is to bridge the VM to a physical network device on the host, and make the VM look like it has network hardware sitting on the same network as the host. This allows for development and testing without port-mapping for web or other services. You can avoid an interactive promot when bringing the VM up by specifying the string of the bridge device to use in the Vagrantfile:
 
       config.vm.network "public_network", ip: "192.168.88.5", bridge: [
         "en6: USB 10/100/1000 LAN",
@@ -70,13 +85,13 @@ The `config.vm.network "public_network"` is to bridge the VM to a physical netwo
 
 ***NOTE***: If your host network interface is on a network that does not have a DHCP server then you will need to include the `ip` and modify the value `, ip: "192.168.88.5"` to be on the same network as that of your host.
 
-Adjust `vb.cpus` and `vb.memory` to meet your VM perf requirements.
+Adjust `vb.cpus` and `vb.memory` to navigate your VM perf requirements and limitations of your host.
 
-Finally, `config.vm.provision "ansible_local"` has the settings that allow Vagrant to [provision the VM]() on `vagrant up` and every subsequent invocation of `vagrant up --provision` and make use of Ansible and its logic to make changes only if needed.
+Finally, `config.vm.provision "ansible_local"` has the settings that allow Vagrant to provision the VM on `vagrant up` and every subsequent invocation of `vagrant up --provision` and make use of Ansible and its logic to make changes only if needed.
 
 ### hosts
 
-The ansible inventory file for the guest VM has two vars used to access the guest VM:
+The ansible inventory file is called `hosts` and describes the guest VM. It also has two vars used to access the guest VM:
 
     vguser = flax      # username for ssh -l <vguser> ...
     vghost = tumblevm  # hostname for ssh ... <vghost>.local
@@ -148,3 +163,17 @@ For example:
 
 Will install git, c/c++ compliers, and other devel tools in the guest.
 
+## Example NPM playbook to demo TypeScript NodeNext
+
+Enter the VM and run the playbook to install npm and typescript
+
+    vagrant ssh
+    cd /vagrant
+    ansible-playbook tsnodenext.yml
+
+Then, from the host, ssh to the node as the `vguser` and cd to the sandbox dir created
+
+    ssh -l flax tumblevm.local
+    cd tsnodenext
+    npm run build
+    node dist/index.js
