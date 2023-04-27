@@ -1,0 +1,15 @@
+---
+- name: "Install devel_basis pattern"
+  hosts: nodes
+  become: true
+  gather_facts: false
+
+  tasks:
+
+    - name: Install pattern(s) with recommends
+      community.general.zypper:
+        type: pattern
+        name:
+          - devel_basis
+        state: present
+        disable_recommends: false

@@ -1,0 +1,83 @@
+---
+- name: "Configure Vagrant VM"
+  hosts: nodes
+  become: true
+  gather_facts: false
+
+  vars:
+
+    vgtype: "ed25519"
+    vgpriv: "/home/{{ vguser }}/.ssh/id_{{ vgtype }}"
+    vgpubk: "{{ vgpriv }}.pub"
+    vgauth: "/home/{{ vguser }}/.ssh/authorized_keys"
+#    vgpass: "$6$6Rohso_YouDontNeedThisCryptedPasswordIfYouProvideAnSSHKey"
+    vgkeys:
+      - ssh-ed25519 AAAACReplaceThisWithYourPubKey {{ vguser }}@{{ vghost }}.local
+
+  tasks:
+
+# so the owner of one of the {{ vgkeys }} can ssh to the node as {{ vguser }} from other machines in the lab
+
+    - name: Create the user {{ vguser }}
+      ansible.builtin.user:
+        name: "{{ vguser }}"
+        shell: /bin/bash
+        state: present
+        # password: "{{ vgpass }}"
+
+    - name: Provide passwordless sudo
+      ansible.builtin.copy:
+        dest: "/etc/sudoers.d/{{ vguser }}"
+        content: "{{ vguser }} ALL=(ALL) NOPASSWD: ALL"
+        mode: "0440"
+
+    - name: Create SSH key
+      become: true
+      become_user: "{{ vguser }}"
+      ansible.builtin.command: ssh-keygen -t {{ vgtype }} -f {{ vgpriv }} -N ''
+      args:
+        creates: "{{ vgpubk }}"
+
+    - name: Cat pubkey
+      ansible.builtin.command:
+        cmd: cat "{{ vgpubk }}"
+      register: pubkey
+      changed_when: false
+
+    - name: Update user authkey list with its own
+      become: true
+      become_user: "{{ vguser }}"
+      ansible.builtin.lineinfile:
+        path: "{{ vgauth }}"
+        line: "{{ pubkey.stdout }}"
+        state: present
+        create: true
+        mode: "0644"
+
+    - name: Add selection of additional authorized_keys
+      ansible.posix.authorized_key:
+        user: "{{ vguser }}"
+        key: "{{ item }}"
+        state: present
+      with_items: "{{ vgkeys }}"
+
+# so we can ping {{ vghost }}.local
+
+    - name: Hostname
+      ansible.builtin.hostname:
+        name: "{{ vghost }}"
+
+    - name: Install avahi and avahi-utils packages
+      community.general.zypper:
+        type: package
+        name:
+          - avahi
+          - avahi-utils
+        state: present
+        disable_recommends: true
+
+    - name: Start avahi service
+      ansible.builtin.service:
+        name: avahi-daemon
+        state: started
+        enabled: true
