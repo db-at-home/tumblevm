@@ -23,7 +23,6 @@
         name: "{{ vguser }}"
         shell: /bin/bash
         state: present
-        # password: "{{ vgpass }}"
 
     - name: Provide passwordless sudo
       ansible.builtin.copy:
@@ -67,12 +66,21 @@
       ansible.builtin.hostname:
         name: "{{ vghost }}"
 
-    - name: Install avahi and avahi-utils packages
+    # required for some js pkgs to resolve hostname
+    - name: Update the /etc/hosts file
+      ansible.builtin.lineinfile:
+        dest: "/etc/hosts"
+        regexp: '.*{{ vghost }}$'
+        line: '{{ hostvars[{{vghost}}].ip_address }} {{ vghost }}'
+        state: present
+
+    - name: Install avahi and dns packages
       community.general.zypper:
         type: package
         name:
           - avahi
-          - avahi-utils
+          - hostname
+          - bind-utils
         state: present
         disable_recommends: true
 

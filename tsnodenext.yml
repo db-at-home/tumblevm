@@ -1,6 +1,6 @@
 ---
 - name: Install NPM as pre-req
-  ansible.builtin.import_playbook: npm.yml
+  ansible.builtin.import_playbook: nodejs.yml
 
 - name: Create and configure a typescript nodenext install
   hosts: nodes
