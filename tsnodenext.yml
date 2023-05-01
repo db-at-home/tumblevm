@@ -27,14 +27,14 @@
       become_user: "{{ vguser }}"
       environment:
         PATH: "{{ ansible_env.PATH }}:/opt/node/bin"
-      ansible.builtin.shell:
+      ansible.builtin.command:
         cmd: npm init -y
         chdir: "{{ sandbox }}"
         creates: "{{ sandbox }}/package.json"
 
     - name: Preserve generated package.json
       become_user: "{{ vguser }}"
-      ansible.builtin.shell:
+      ansible.builtin.command:
         cmd: "cp package.json package.json.orig"
         chdir: "{{ sandbox }}"
         creates: "{{ sandbox }}/package.json.orig"
@@ -97,14 +97,14 @@
       become_user: "{{ vguser }}"
       environment:
         PATH: "{{ ansible_env.PATH }}:/opt/node/bin"
-      ansible.builtin.shell:
+      ansible.builtin.command:
         cmd: npx tsc --init
         chdir: "{{ sandbox }}"
         creates: "{{ sandbox }}/tsconfig.json"
 
     - name: Preserve generated tsconfig.json
       become_user: "{{ vguser }}"
-      ansible.builtin.shell:
+      ansible.builtin.command:
         cmd: "cp tsconfig.json tsconfig.json.orig"
         chdir: "{{ sandbox }}"
         creates: "{{ sandbox }}/tsconfig.json.orig"

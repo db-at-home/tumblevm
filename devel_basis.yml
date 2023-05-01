@@ -1,5 +1,5 @@
 ---
-- name: "Install devel_basis pattern and cmake"
+- name: "Install patterns and packages"
   hosts: nodes
   become: true
   gather_facts: false
@@ -16,7 +16,7 @@
           # - devel_kernel
         state: present
 
-    # some node packages seem to require cmake to build
+    # some node packages seem to require cmake and git to build
     - name: Install package(s) with recommends
       community.general.zypper:
         disable_recommends: false
@@ -24,4 +24,5 @@
         name:
           - cmake
           - git
+          - jq
         state: present
