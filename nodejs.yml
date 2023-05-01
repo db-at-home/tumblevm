@@ -1,0 +1,56 @@
+---
+- name: Install nodejs pkg build dependencies
+  ansible.builtin.import_playbook: devel_basis.yml
+
+- name: "Install nodejs"
+  hosts: nodes
+  become: true
+  gather_facts: false
+
+  vars:
+
+    # npmver: "npm19"
+    package: "node-v20.0.0-linux-x64"
+    tarball: "{{ package }}.tar.xz"
+    nodeurl: "https://nodejs.org/dist/latest/{{ tarball }}"
+
+  tasks:
+
+    # - name: Install {{ npmver }}
+    #   community.general.zypper:
+    #     name:
+    #       - "{{ npmver }}"
+    #     state: present
+
+    # alternative method to get latest node/npm 
+    # install is "global" for all users, however
+    # sudo won't find things in /usr/local or /opt/.
+
+    - name: Get latest nodejs tarball {{ nodeurl }}
+      ansible.builtin.get_url:
+        url: "{{ nodeurl }}"
+        dest: /home/{{ vguser }}
+        owner: "{{ vguser }}"
+        group: users
+        mode: '0644'
+
+    - name: Expand tarball in /opt
+      ansible.builtin.command:
+        cmd: tar xf /home/{{ vguser }}/{{ tarball }}
+        chdir: /opt
+        creates: /opt/{{ package }}
+
+    - name: Create a simplified path with symlink
+      ansible.builtin.command:
+        cmd: ln -s {{ package }} node
+        chdir: /opt
+        creates: /opt/node
+
+    - name: Create profile script for adding to path
+      ansible.builtin.copy:
+        dest: /etc/profile.d/nodejs.sh
+        content: "export PATH=$PATH:/opt/node/bin"
+        force: true
+        owner: root
+        group: root
+        mode: '0644'

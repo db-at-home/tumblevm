@@ -2,7 +2,7 @@
 - name: "Configure Vagrant VM"
   hosts: nodes
   become: true
-  gather_facts: false
+  gather_facts: true
 
   vars:
 
@@ -10,7 +10,6 @@
     vgpriv: "/home/{{ vguser }}/.ssh/id_{{ vgtype }}"
     vgpubk: "{{ vgpriv }}.pub"
     vgauth: "/home/{{ vguser }}/.ssh/authorized_keys"
-#    vgpass: "$6$6Rohso_YouDontNeedThisCryptedPasswordIfYouProvideAnSSHKey"
     vgkeys:
       - ssh-ed25519 AAAACReplaceThisWithYourPubKey {{ vguser }}@{{ vghost }}.local
 
@@ -23,13 +22,21 @@
         name: "{{ vguser }}"
         shell: /bin/bash
         state: present
-        # password: "{{ vgpass }}"
 
     - name: Provide passwordless sudo
       ansible.builtin.copy:
         dest: "/etc/sudoers.d/{{ vguser }}"
         content: "{{ vguser }} ALL=(ALL) NOPASSWD: ALL"
         mode: "0440"
+
+    - name: Create global .gitconfig as some node pkg builds require it
+      ansible.builtin.copy:
+        dest: "/home/{{ vguser }}/.gitconfig"
+        content: |
+          [user]
+            email = "{{ vguser }}@noreply.com"
+            name = "{{ vguser }}"
+        mode: "0644"
 
     - name: Create SSH key
       become: true
@@ -67,12 +74,21 @@
       ansible.builtin.hostname:
         name: "{{ vghost }}"
 
-    - name: Install avahi and avahi-utils packages
+    # required for some js pkgs to resolve hostname
+    - name: Update the /etc/hosts file
+      ansible.builtin.lineinfile:
+        dest: "/etc/hosts"
+        regexp: '.*{{ vghost }}$'
+        line: '{{ ansible_eth1.ipv4.address }} {{ vghost }}'
+        state: present
+
+    - name: Install avahi and dns packages
       community.general.zypper:
         type: package
         name:
           - avahi
-          - avahi-utils
+          - hostname
+          - bind-utils
         state: present
         disable_recommends: true
 

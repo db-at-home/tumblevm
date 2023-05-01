@@ -1,5 +1,5 @@
 ---
-- name: "Install devel_basis pattern"
+- name: "Install patterns and packages"
   hosts: nodes
   become: true
   gather_facts: false
@@ -8,8 +8,21 @@
 
     - name: Install pattern(s) with recommends
       community.general.zypper:
+        update_cache: true
+        disable_recommends: false
         type: pattern
         name:
           - devel_basis
+          # - devel_kernel
         state: present
+
+    # some node packages seem to require cmake and git to build
+    - name: Install package(s) with recommends
+      community.general.zypper:
         disable_recommends: false
+        type: package
+        name:
+          - cmake
+          - git
+          - jq
+        state: present
