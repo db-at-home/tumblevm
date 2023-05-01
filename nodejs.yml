@@ -10,17 +10,17 @@
   vars:
 
     # npmver: "npm19"
-    package: node-v20.0.0-linux-x64
-    tarball: ${package}.tar.xz
-    nodeurl: https://nodejs.org/dist/latest/${tarball}
+    package: "node-v20.0.0-linux-x64"
+    tarball: "{{ package }}.tar.xz"
+    nodeurl: "https://nodejs.org/dist/latest/{{ tarball }}"
 
   tasks:
 
-    #- name: Install {{ npmver }}
-    #  community.general.zypper:
-    #    name:
-    #      - "{{ npmver }}"
-    #    state: present
+    # - name: Install {{ npmver }}
+    #   community.general.zypper:
+    #     name:
+    #       - "{{ npmver }}"
+    #     state: present
 
     # alternative method to get latest node/npm 
     # install is "global" for all users, however
@@ -30,7 +30,7 @@
       ansible.builtin.get_url:
         url: "{{ nodeurl }}"
         dest: /home/{{ vguser }}
-        owner: {{ vguser }}
+        owner: "{{ vguser }}"
         group: users
         mode: '0644'
 
@@ -40,10 +40,16 @@
         chdir: /opt
         creates: /opt/{{ package }}
 
+    - name: Create a simplified path with symlink
+      ansible.builtin.command:
+        cmd: ln -s {{ package }} node
+        chdir: /opt
+        creates: /opt/node
+
     - name: Create profile script for adding to path
       ansible.builtin.copy:
         dest: /etc/profile.d/nodejs.sh
-        content: "PATH=$PATH:/opt/{{ package }}/bin"
+        content: "export PATH=$PATH:/opt/node/bin"
         force: true
         owner: root
         group: root

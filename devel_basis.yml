@@ -13,7 +13,7 @@
         type: pattern
         name:
           - devel_basis
-          #- devel_kernel
+          # - devel_kernel
         state: present
 
     # some node packages seem to require cmake to build
@@ -23,4 +23,5 @@
         type: package
         name:
           - cmake
+          - git
         state: present

@@ -5,7 +5,7 @@
 - name: Create and configure a typescript nodenext install
   hosts: nodes
   become: true
-  gather_facts: false
+  gather_facts: true
 
 # this is a setup based on https://www.youtube.com/watch?v=H91aqUHn8sE
 
@@ -25,10 +25,19 @@
 
     - name: NPM init
       become_user: "{{ vguser }}"
-      ansible.builtin.command:
+      environment:
+        PATH: "{{ ansible_env.PATH }}:/opt/node/bin"
+      ansible.builtin.shell:
         cmd: npm init -y
         chdir: "{{ sandbox }}"
         creates: "{{ sandbox }}/package.json"
+
+    - name: Preserve generated package.json
+      become_user: "{{ vguser }}"
+      ansible.builtin.shell:
+        cmd: "cp package.json package.json.orig"
+        chdir: "{{ sandbox }}"
+        creates: "{{ sandbox }}/package.json.orig"
 
     - name: Overwrite package.json -- set type module and build tsc
       ansible.builtin.copy:
@@ -38,29 +47,67 @@
             "name": "{{ projname }}",
             "version": "1.0.0",
             "description": "",
-            "main": "index.js",
+            "main": "dist/index.js",
             "type": "module",
             "scripts": {
-              "build": "tsc"
+              "prebuild": "npx rimraf dist",
+              "build": "npx tsc",
+              "prestart": "npm run build",
+              "start": "node dist/index.js",
+              "predevel": "npm run build",
+              "devel": "npx concurrently \"npx tsc -w\" \"nodemon dist/index.js\""
             },
             "keywords": [],
             "author": "",
-            "license": "ISC",
-            "dependencies": {
-            }
+            "license": "ISC"
           }
         mode: "0644"
         owner: "{{ vguser }}"
 
-    - name: NPM install
+    - name: NPM install devel
       become_user: "{{ vguser }}"
+      environment:
+        PATH: "{{ ansible_env.PATH }}:/opt/node/bin"
       community.general.npm:
         name: "{{ item }}"
         path: "{{ sandbox }}"
+        production: false
         state: present
       with_items:
         - typescript
+        - nodemon
+        - concurrently
+        - rimraf
         - "@types/node"
+        - "@types/express"
+
+    - name: NPM install production
+      become_user: "{{ vguser }}"
+      environment:
+        PATH: "{{ ansible_env.PATH }}:/opt/node/bin"
+      community.general.npm:
+        name: "{{ item }}"
+        path: "{{ sandbox }}"
+        production: true
+        state: present
+      with_items:
+        - express
+
+    - name: TS init
+      become_user: "{{ vguser }}"
+      environment:
+        PATH: "{{ ansible_env.PATH }}:/opt/node/bin"
+      ansible.builtin.shell:
+        cmd: npx tsc --init
+        chdir: "{{ sandbox }}"
+        creates: "{{ sandbox }}/tsconfig.json"
+
+    - name: Preserve generated tsconfig.json
+      become_user: "{{ vguser }}"
+      ansible.builtin.shell:
+        cmd: "cp tsconfig.json tsconfig.json.orig"
+        chdir: "{{ sandbox }}"
+        creates: "{{ sandbox }}/tsconfig.json.orig"
 
     - name: NPM create TS Config
       ansible.builtin.copy:
@@ -73,6 +120,8 @@
               "target": "ES2020",
               "sourceMap": true,
               "outDir": "dist",
+              "rootDir": "src",
+              "strict": true
             },
             "include": ["src/**/*"],
           }
@@ -87,9 +136,9 @@
         mode: "0644"
         owner: "{{ vguser }}"
 
-    - name: CommonJS Module hello
+    - name: CommonJS Module hola
       ansible.builtin.copy:
-        dest: "{{ sandbox }}/src/hello.cts"
+        dest: "{{ sandbox }}/src/hola.cts"
         content: |
           module.exports = 'hola world!';
         mode: "0644"
@@ -100,7 +149,7 @@
         dest: "{{ sandbox }}/src/index.ts"
         content: |
           import { hello } from './hello.js';
-          import hola from './hello.cjs'
+          import hola from './hola.cjs'
           console.log(hello);
           console.log(hola);
         mode: "0644"
